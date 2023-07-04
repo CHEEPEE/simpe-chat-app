@@ -58,7 +58,8 @@ const useLoginHelper = () => {
         setisValidInput,
         setCredentials,
         errorMessage,
-        isValidInput
+        isValidInput,
+        credentials
     }
 }
 

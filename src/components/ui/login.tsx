@@ -1,4 +1,6 @@
 import { useRouter } from "next/router"
+import Link from "next/link"
+
 import { useEffect, useState } from "react"
 import { Button } from "~/@/components/ui/button"
 import { Input } from "~/@/components/ui/input"
@@ -7,7 +9,7 @@ import { User } from "~/store/userStore"
 import useLoginHelper, { validateEmail, validatePassword } from "~/utils/helpers"
 
 const Login = () => {
-    const { isValidInput } = useLoginHelper()
+    const { isValidInput, setCredentials } = useLoginHelper()
     const { googleAuth } = useAuth()
     const { push } = useRouter()
     const hanleGoogleAuthCallback = (user: User) => {
@@ -18,40 +20,48 @@ const Login = () => {
         }
     }
     return (
-        <div className="flex w-full max-w-[302px] bg-white shadow-lg p-[20px] pt-[40px] rounded-md flex-col">
-            <div className="flex flex-col gap-5">
-                <div className="flex">
-                    <h3 className="font-bold text-xl"> Login</h3>
-                </div>
-                <div className="flex">
-                    {/* Email */}
-                    <Input placeholder="Email" />
-                </div>
+        <div className="flex flex-col w-full justify-center items-center gap-[40px]">
+            <div className="transition flex w-full sm:max-w-[320px] bg-white sm:shadow-lg p-[20px] pt-[40px] rounded-xl flex-col">
+                <div className="flex flex-col gap-5">
+                    <div className="flex">
+                        <h3 className="font-bold text-gray-600 text-xl"> Login</h3>
+                    </div>
+                    <div className="flex">
+                        {/* Email */}
+                        <Input className="border-orange-100" placeholder="Email"
+                            onChange={() => {
 
-                <div className="flex">
-                    {/* Password */}
-                    <Input placeholder="Password" />
-                </div>
+                            }}
+                        />
+                    </div>
+                    <div className="flex">
+                        {/* Password */}
+                        <Input className="border-orange-100" placeholder="Password" />
+                    </div>
 
-                <div className="flex">
-                    {/* Submit */}
-                    <Button disabled={!isValidInput} className="w-full">Login</Button>
-                </div>
+                    <div className="flex">
+                        {/* Submit */}
+                        <Button disabled={!isValidInput} className="w-full bg-orange-600">Login</Button>
+                    </div>
 
-                <div className="flex justify-center flex-col  text-center">
-                    {/* or */}
-                    <div className="text-gray-500">
-                        or
+                    <div className="flex justify-center flex-col  text-center">
+                        {/* or */}
+                        <div className="text-gray-500">
+                            or
+                        </div>
+                    </div>
+                    <div className="flex">
+                        {/* Google Login */}
+                        <Button variant={'outline'}
+                            onClick={() => {
+                                googleAuth({ callBack: hanleGoogleAuthCallback })
+                            }}
+                            className="w-full border-orange-100 hover:bg-orange-100">Google</Button>
                     </div>
                 </div>
-                <div className="flex">
-                    {/* Google Login */}
-                    <Button variant={'outline'}
-                        onClick={() => {
-                            googleAuth({ callBack: hanleGoogleAuthCallback })
-                        }}
-                        className="w-full">Google</Button>
-                </div>
+            </div>
+            <div className="flex items-center text-[13px] gap-[5px] text-gray-600 justify-center">
+                Need an account?<Link href={"/signup"} className="font-bold hover:text-orange-400">Signup</Link>
             </div>
         </div>
     )
