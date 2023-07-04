@@ -9,6 +9,7 @@ import {
     updateProfile,
     signInWithPopup,
     getAuth,
+    signInWithEmailAndPassword,
     GoogleAuthProvider
 } from "firebase/auth";
 import {
@@ -35,6 +36,19 @@ const useAuth = () => {
             error = null;
         try {
             await createUserWithEmailAndPassword(auth, email, password).then((result) => {
+                callBack(getuserFromResult(result))
+                updateUserProfile(getuserFromResult(result))
+            })
+        } catch (e) {
+            error = e;
+        }
+        return { result, error };
+    }
+    const login = async (email: string, password: string, callBack: (user: User) => void) => {
+        let result = null,
+            error = null;
+        try {
+            await signInWithEmailAndPassword(auth, email, password).then((result) => {
                 callBack(getuserFromResult(result))
                 updateUserProfile(getuserFromResult(result))
             })
@@ -137,7 +151,8 @@ const useAuth = () => {
         user,
         googleAuth,
         updateUsername,
-        signUp
+        signUp,
+        login
     }
 
 }

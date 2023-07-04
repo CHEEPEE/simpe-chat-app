@@ -19,7 +19,7 @@ const ChatPage = () => {
     return (
         <PageContainer>
             <div className="flex w-full h-full">
-                <div className="flex bg-white w-[320px] border border-r-1 border-gray-100 gap-[20px] flex-col">
+                <div className="flex static bg-white w-[320px] border border-r-1 border-gray-100 gap-[20px] flex-col">
                     <div className="flex  flex-col px-[10px] py-[20px] backdrop-blur-3xl gap-[10px]">
                         <Link href={'/profile'}>
                             <div className="transition group rounded-md hover:cursor-pointer flex p-[10px] hover:bg-orange-100 gap-[10px] items-center">
@@ -37,6 +37,11 @@ const ChatPage = () => {
                             placeholder="Search Email" />}
                         <div className="flex w-full">
                             {query.id && searchResult.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
+                        </div>
+                    </div>
+                    <div className="flex absolute bottom-[0px] p-[20px]">
+                        <div className="flex text-[13px] text-gray-400">
+                            People you may know 🤸‍♀️
                         </div>
                     </div>
                 </div>

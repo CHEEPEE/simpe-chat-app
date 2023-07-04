@@ -9,8 +9,8 @@ import { User } from "~/store/userStore"
 import useLoginHelper, { validateEmail, validatePassword } from "~/utils/helpers"
 
 const Login = () => {
-    const { isValidInput, setCredentials } = useLoginHelper()
-    const { googleAuth } = useAuth()
+    const { isValidInput, setCredentials, credentials } = useLoginHelper()
+    const { googleAuth, login } = useAuth()
     const { push } = useRouter()
     const hanleGoogleAuthCallback = (user: User) => {
         if (user.username.trim().length != 0) {
@@ -29,19 +29,33 @@ const Login = () => {
                     <div className="flex">
                         {/* Email */}
                         <Input className="border-orange-100" placeholder="Email"
-                            onChange={() => {
-
+                            onChange={(e) => {
+                                setCredentials(prev => ({
+                                    ...prev,
+                                    email: e.target.value
+                                }))
                             }}
                         />
                     </div>
                     <div className="flex">
                         {/* Password */}
-                        <Input className="border-orange-100" placeholder="Password" />
+                        <Input className="border-orange-100"
+                            onChange={(e) => {
+                                setCredentials(prev => ({
+                                    ...prev,
+                                    password: e.target.value
+                                }))
+                            }}
+                            placeholder="Password" />
                     </div>
 
                     <div className="flex">
                         {/* Submit */}
-                        <Button disabled={!isValidInput} className="w-full bg-orange-600">Login</Button>
+                        <Button disabled={!isValidInput}
+                            onClick={() => {
+                                login(credentials.email, credentials.password, hanleGoogleAuthCallback)
+                            }}
+                            className="w-full bg-orange-600">Login</Button>
                     </div>
 
                     <div className="flex justify-center flex-col  text-center">
