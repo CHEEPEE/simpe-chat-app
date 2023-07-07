@@ -62,14 +62,14 @@ const useInbox = () => {
         }
     }
 
-    const convoSnapShot = () => {
-
+    const convoSnapShot = (id: string) => {
+        onSnapshot(doc(db, COLLECTIONS.CONVO_DETAILS, id as string), (doc) => {
+            setCurrentConvo({ ...doc.data() as any, id: doc?.id })
+        });
     }
 
     const sendMessage = async ({ text }: { text: string }) => {
         if (text.trim().length != 0) {
-            console.log(currentConvo);
-
             const convoDetailsRef = doc(db, COLLECTIONS.CONVO_DETAILS, currentConvo?.id as string)
             const dateCreated = new Date()
             await updateDoc(convoDetailsRef, {
@@ -124,6 +124,7 @@ const useInbox = () => {
         } else {
             // const id: any = convoDetails.docs[0]?.id
             setCurrentConvo({ ...convoDetails.docs[0]?.data() as any, id: convoDetails.docs[0]?.id })
+            convoSnapShot(convoDetails.docs[0]?.id as string)
         }
 
         const convoDetailsIds: string[] = []

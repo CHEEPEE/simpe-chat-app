@@ -12,9 +12,12 @@ import { UserConvo } from "~/components/ui/inbox";
 import { useRouter } from "next/router"
 import { useState } from 'react'
 import clsx from 'clsx'
+import useUser from "~/hooks/useUser";
+import { UserStore } from "~/store/userStore";
 const ChatBubble = ({ chat }: { chat: Message }) => {
+    const { user } = UserStore()
     return (
-        <div className="flex w-full justify-end">
+        <div className={clsx("flex w-full animate__animated animate__fadeInUp animate__fastest", user?._id == (chat as any)?.user && "justify-end")}>
             <div className="flex w-content rounded-[20px] px-[15px] text-white py-[10px] bg-gradient-to-r from-orange-300 to-orange-400 shadow-md">{chat.text}</div>
         </div>
     )
