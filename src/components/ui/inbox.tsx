@@ -14,7 +14,7 @@ export const UserConvo = ({ user, lastChat = "", activeChatId }: { user: User, l
                     <div className={clsx("flex text-[13px]", activeChatId == user._id && "font-bold text-gray-800 text-[15px]")}>
                         <div className="flex text-bold">{user.username}</div>
                     </div>
-                    <div className="flex text-[13px] text-gray-600">{lastChat} 💫</div>
+                    <div className="flex text-[13px] text-gray-600">{lastChat}</div>
                 </div>
             </div>
         </Link>

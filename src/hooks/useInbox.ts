@@ -86,8 +86,15 @@ const useInbox = () => {
     }
 
     const getConnectedUser = async (id: string) => {
-        const connectedUsers = await getDocs(query(collection(db, COLLECTIONS.USERS), where("connectedUsers", "array-contains", id)))
-        setConnectedUser(connectedUsers.docs.map(doc => doc.data() as User))
+        await onSnapshot(query(collection(db, COLLECTIONS.USERS), where("connectedUsers", "array-contains", id)), (docs) => {
+            setConnectedUser(docs.docs.map(doc => doc.data() as User))
+        })
+
+        await onSnapshot(query(collection(db, COLLECTIONS.CONVO_DETAILS), where("users", "array-contains", user?._id)), (docs) => {
+            setAllConvo(docs.docs.map(doc => doc.data() as ConvoDetails))
+        })
+
+        // console.log(connectedUsers.docs.map(doc => doc.data() as User));
     }
 
     const getConvo = async ({ currentUserId, recipientId }: { currentUserId: string, recipientId: string }) => {
@@ -148,6 +155,9 @@ const useInbox = () => {
     }
     useEffect(() => {
         suggestUser()
+        if (user?._id) {
+            getConnectedUser(user._id)
+        }
     }, [])
 
     useEffect(() => {
@@ -163,14 +173,15 @@ const useInbox = () => {
             getConnectedUser(user._id)
             getConvo({ currentUserId: user._id, recipientId: routerQuery.id as string })
         }
-    }, [routerQuery,])
+    }, [routerQuery])
 
     return {
         searchByEmail, searchResult,
         suggestedUsers,
         connectedUser,
         currentConvo,
-        sendMessage
+        sendMessage,
+        allConvo
     }
 }
 
