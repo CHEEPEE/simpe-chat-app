@@ -6,16 +6,24 @@ import { Send, UserCog2 } from 'lucide-react';
 import Image from 'next/image'
 import Link from "next/link"
 import { randAvatar } from "~/utils/strings";
-import useInbox from "~/hooks/useInbox";
+import useInbox, { Message } from "~/hooks/useInbox";
 import { validateEmail } from "~/utils/helpers";
 import { UserConvo } from "~/components/ui/inbox";
 import { useRouter } from "next/router"
+import { useState } from 'react'
 import clsx from 'clsx'
-
+const ChatBubble = ({ chat }: { chat: Message }) => {
+    return (
+        <div className="flex w-full justify-end">
+            <div className="flex w-content rounded-[20px] px-[15px] text-white py-[10px] bg-gradient-to-r from-orange-300 to-orange-400 shadow-md">{chat.text}</div>
+        </div>
+    )
+}
 const ChatPage = () => {
-    const { searchByEmail, searchResult, suggestedUsers } = useInbox()
+    const { searchByEmail, searchResult, suggestedUsers, currentConvo, connectedUser, sendMessage } = useInbox()
     const { user } = useAuth()
     const { query } = useRouter()
+    const [message, setMessage] = useState(null)
     return (
         <PageContainer>
             <div className="flex w-full h-full">
@@ -32,23 +40,25 @@ const ChatPage = () => {
                                 </div>
                             </div>
                         </Link>
-                        {query.id && <Input
-                            onChange={(e) => validateEmail(e.target.value) && searchByEmail(e.target.value)}
-                            placeholder="Search Email" />}
-                        <div className="flex w-full">
+                        {query.id &&
+                            <Input
+                                onChange={(e) => validateEmail(e.target.value) && searchByEmail(e.target.value)}
+                                placeholder="Search Email" />}
+                        <div className="flex gap-[5px] w-full flex-col">
                             {query.id && searchResult.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
+                            {query.id && connectedUser.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
                         </div>
                     </div>
-                    <div className="flex flex-col w-[300px] gap-[20px] absolute bottom-[0px] p-[20px]">
+                    {suggestedUsers.slice(1).filter(user => connectedUser.findIndex(u => u._id == user._id) == -1).length != 0 && < div className="flex flex-col w-[300px] gap-[20px] absolute bottom-[0px] p-[20px]">
                         <div className="flex text-[13px] text-gray-400">
                             People you may know 🤸‍♀️
                         </div>
                         <div className="flex flex-col w-full gap-[10px]">
-                            {suggestedUsers.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
+                            {suggestedUsers.slice(1).filter(user => connectedUser.findIndex(u => u._id == user._id) == -1).map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
                         </div>
-                    </div>
+                    </div>}
                 </div>
-                <div className={clsx("flex static", !query?.id && 'w-full')}>
+                <div className={clsx("flex static h-full w-full", !query?.id && 'w-full')}>
                     {!query.id && (
                         <div className="flex w-full h-full  items-center justify-center">
                             <div className="flex flex-col gap-[10px] w-full max-w-[480px] p-[20px]">
@@ -62,16 +72,39 @@ const ChatPage = () => {
                             </div>
                         </div>
                     )}
+                    <div className="flex flex-col gap-[10px] w-full h-full p-[20px] pb-[70px]">
+                        {currentConvo?.messages?.reverse().map((message: Message) => <ChatBubble chat={message} />)}
+                    </div>
                     <div className="flex  max-w-[calc(100%-320px)] gap-[10px] w-full px-[20px] py-[10px] absolute bottom-[0px]">
-                        {query?.id && (
+                        {query?.id && currentConvo && (
                             <>
-                                <Input placeholder="Send a message ✨" /> <Button className="bg-orange-100" variant={'secondary'}> <Send className="text-orange-400" /></Button>
+                                <Input
+                                    // value={message ?? ""}
+                                    onKeyDown={(e: any) => {
+                                        if (e.shiftKey && e.key === "Enter") {
+                                            // Insert a line break
+                                            // setText(e.target.value + "\n")
+                                            setMessage(e.target.value)
+                                        }
+                                        else if (e.key === "Enter") {
+                                            // Submit the form
+                                            e.preventDefault(); // Prevents the default form submission
+                                            // setMessage(e.target.value)
+                                            if (e.target.value.trim().length != 0) {
+                                                sendMessage({ text: e.target.value })
+                                                setMessage(null)
+                                            }
+
+                                            // Replace the following line with your own code to handle form submission
+                                        }
+                                    }}
+                                    placeholder="Send a message ✨" /> <Button className="bg-orange-100" variant={'secondary'}> <Send className="text-orange-400" /></Button>
                             </>
                         )}
                     </div>
                 </div>
             </div>
-        </PageContainer>
+        </PageContainer >
     )
 }
 export default ChatPage

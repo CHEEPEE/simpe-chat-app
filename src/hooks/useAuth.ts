@@ -129,7 +129,7 @@ const useAuth = () => {
                 // https://firebase.google.com/docs/reference/js/auth.user
                 if (auth.currentUser) {
                     const user = {
-                        _id: auth.currentUser.providerId,
+                        _id: auth.currentUser.uid,
                         username: auth.currentUser.displayName ?? "",
                         email: auth.currentUser.email ?? "",
                         photoUrl: auth.currentUser.photoURL ?? "",
