@@ -1,7 +1,7 @@
 import { use, useEffect, useState } from 'react';
 import firebase_app, { auth, db } from '../firebase-config'
 import { initializeApp, getApp } from "firebase/app";
-import { collection, addDoc, setDoc, doc } from "firebase/firestore";
+import { collection, addDoc, setDoc, doc, updateDoc } from "firebase/firestore";
 
 import {
     createUserWithEmailAndPassword,
@@ -61,9 +61,10 @@ const useAuth = () => {
     const updateUserProfile = async (user: User) => {
         try {
             // const docRef = await addDoc(collection(db, "users"), user);
-            await setDoc(doc(db, "users", user._id), user);
+            await updateDoc(doc(db, "users", user._id), user);
 
         } catch (e) {
+            await setDoc(doc(db, "users", user._id), user);
             console.error("Error adding document: ", e);
         }
     }

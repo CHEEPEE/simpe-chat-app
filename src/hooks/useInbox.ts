@@ -1,11 +1,12 @@
 import { db } from "~/firebase-config";
 import { query, where, collection, doc, setDoc, getDocs, updateDoc, onSnapshot, arrayUnion, serverTimestamp, FieldValue } from "firebase/firestore";
-import { use, useEffect, useState } from 'react';
+import { use, useEffect, useState, useCallback } from 'react';
 import { User } from "~/store/userStore";
 import { useRouter } from "next/router"
 import useAuth from "./useAuth";
 import useUser from "./useUser";
 import { COLLECTIONS } from "~/utils/strings";
+import { InboxStore } from "~/store/inboxStore";
 
 
 
@@ -14,8 +15,8 @@ type UserConvo = {
     lastConvo: ""
 }
 export type Message = { dateCreated: Date, text: string, userId: string }
-type UserId = string
-type ConvoDetails = {
+export type UserId = string
+export type ConvoDetails = {
     users: Array<UserId>,
     usersData?: Array<User>,
     lastChat: string,
@@ -25,25 +26,23 @@ type ConvoDetails = {
     messages?: Array<Message>
 }
 
-type Conversation = {
+export type Conversation = {
     userId: string,
     message: string,
     type: "text" | "Image"
 }
-type Conversations = Array<Conversation>
+export type Conversations = Array<Conversation>
 const useInbox = () => {
     // .where('name', '>=', queryText)
     // .where('name', '<=', queryText+ '\uf8ff')
     const { user } = useAuth()
     const { getUser } = useUser()
-    const { query: routerQuery } = useRouter()
+    const { query: routQuery } = useRouter()
+    const { setAllConvo, allConvo, currentConvo, setCurretntConvo, suggestedUsers, setSuggestedUsers, setConnectedUsers, connectedUsers } = InboxStore()
     const [searchResult, setSearchResult] = useState<Array<User>>([])
-    const [suggestedUsers, setSuggestedUsers] = useState<Array<User>>([])
-    const [allConvo, setAllConvo] = useState<Array<ConvoDetails>>([])
-    const [currentRecipient, setCurrentRecipient] = useState<User | null>(null)
-    const [currentConvo, setCurrentConvo] = useState<ConvoDetails | null>(null)
-    const [relatedUsers, setRelatedUsers] = useState<Array<User>>([])
-    const [connectedUser, setConnectedUser] = useState<Array<User>>([])
+    // const [suggestedUsers, setSuggestedUsers] = useState<Array<User>>([])
+    // const [relatedUsers, setRelatedUsers] = useState<Array<User>>([])
+    // const [connectedUser, setConnectedUser] = useState<Array<User>>([])
     const searchByEmail = async (email: string) => {
         let emailQuery = query(collection(db, "users"), where("email", "==", email));
         let result = await getDocs(emailQuery)
@@ -52,21 +51,17 @@ const useInbox = () => {
         setSearchResult(users)
     }
 
-    const addRelatedUser = ({ user }: { user: User }) => {
-        const userIndex = relatedUsers.findIndex(_user => user._id == _user._id)
-        if (userIndex != -1) {
-            // setRelatedUsers
-        } else {
-            //add user
-            setRelatedUsers(prev => [...prev, user])
-        }
-    }
+    // const addRelatedUser = ({ user }: { user: User }) => {
+    //     const userIndex = relatedUsers.findIndex(_user => user._id == _user._id)
+    //     if (userIndex != -1) {
+    //         // setRelatedUsers
+    //     } else {
+    //         //add user
+    //         setRelatedUsers(prev => [...prev, user])
+    //     }
+    // }
 
-    const convoSnapShot = (id: string) => {
-        onSnapshot(doc(db, COLLECTIONS.CONVO_DETAILS, id as string), (doc) => {
-            setCurrentConvo({ ...doc.data() as any, id: doc?.id })
-        });
-    }
+
 
     const sendMessage = async ({ text }: { text: string }) => {
         if (text.trim().length != 0) {
@@ -85,32 +80,57 @@ const useInbox = () => {
         }
     }
 
+    const getAllConvo = async (call: string) => {
+        const snap = await onSnapshot(query(collection(db, COLLECTIONS.CONVO_DETAILS), where("users", "array-contains", user?._id)), { includeMetadataChanges: true }, (snapshot) => {
+            // setCurrentConvo({ ...convoDetails.docs[0]?.data() as any, id: convoDetails.docs[0]?.id })
+            const source = snapshot.metadata.hasPendingWrites ? "Local" : "Server";
+            if (source == "Server") {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === "modified") {
+                        console.log(call, "modified: ", change.doc.data());
+                        const message: ConvoDetails = change.doc.data() as any
+                        const _user = connectedUsers[connectedUsers.findIndex(user => user._id == message.lastUser)]
+                        if (_user && message.lastUser != routQuery._id && message.lastUser != user?._id) {
+                            const greeting = new Notification(_user?.username as string, {
+                                body: message.lastChat,
+                                icon: _user?.photoUrl,
+                            });
+                            setTimeout(() => {
+                                greeting.close();
+                            }, 10 * 1000);
+                        }
+                    }
+                });
+                setAllConvo(snapshot.docs.map(doc => doc.data() as ConvoDetails))
+            }
+
+        })
+
+        return snap
+    }
+
     const getConnectedUser = async (id: string) => {
         await onSnapshot(query(collection(db, COLLECTIONS.USERS), where("connectedUsers", "array-contains", id)), (docs) => {
-            setConnectedUser(docs.docs.map(doc => doc.data() as User))
+            setConnectedUsers(docs.docs.map(doc => doc.data() as User))
         })
-
-        await onSnapshot(query(collection(db, COLLECTIONS.CONVO_DETAILS), where("users", "array-contains", user?._id)), (docs) => {
-            setAllConvo(docs.docs.map(doc => doc.data() as ConvoDetails))
-        })
-
         // console.log(connectedUsers.docs.map(doc => doc.data() as User));
     }
 
     const getConvo = async ({ currentUserId, recipientId }: { currentUserId: string, recipientId: string }) => {
         const user = await getUser({ id: recipientId })
         if (user) {
-            const convoDetails = await getConvoDetails({ currentUserId, recipientId })
-            if (convoDetails.length != 0) {
-
-            } else if (convoDetails.length > 1) {
-
-            }
+            return await getConvoDetails({ currentUserId, recipientId })
         }
     }
-    const getConvoDetails = async ({ currentUserId, recipientId }: { currentUserId: string, recipientId: string }) => {
-        const convoDetails = await getDocs(query(collection(db, COLLECTIONS.CONVO_DETAILS), where("users", "array-contains", currentUserId + recipientId)))
 
+    const getCurrentConvo = useCallback(({ userId, recipeintId }: { userId: string, recipeintId: string }) => {
+        const index = allConvo.findIndex((convo: ConvoDetails) => convo.users.findIndex(uid => uid == userId + recipeintId) != -1)
+        return allConvo[index]
+    }, [allConvo])
+
+    const getConvoDetails: any = async ({ currentUserId, recipientId }: { currentUserId: string, recipientId: string }) => {
+        const convoDetails = await getDocs(query(collection(db, COLLECTIONS.CONVO_DETAILS), where("users", "array-contains", currentUserId + recipientId)))
+        let _getAllConvo = null
         if (convoDetails.docs.length == 0) {
             // create convo details
             const convoDetails: ConvoDetails = {
@@ -118,20 +138,22 @@ const useInbox = () => {
                 lastChat: "",
                 lastUser: currentUserId,
                 lastUpdate: serverTimestamp(),
-
             }
             // const id = await doc(db, COLLECTIONS.CONVO_DETAILS).id
             const userRef = doc(db, COLLECTIONS.USERS, recipientId)
+            await setDoc(doc(collection(db, COLLECTIONS.CONVO_DETAILS)), convoDetails)
             await updateDoc(userRef, {
                 connectedUsers: arrayUnion(currentUserId)
             })
-            await setDoc(doc(collection(db, COLLECTIONS.CONVO_DETAILS)), convoDetails)
-            await getConvoDetails({ currentUserId, recipientId })
-
+            await updateDoc(doc(db, COLLECTIONS.USERS, currentUserId), {
+                connectedUsers: arrayUnion(recipientId)
+            })
+            const unSub = await getConvoDetails({ currentUserId, recipientId })
+            unSub()
         } else {
-            // const id: any = convoDetails.docs[0]?.id
-            setCurrentConvo({ ...convoDetails.docs[0]?.data() as any, id: convoDetails.docs[0]?.id })
-            convoSnapShot(convoDetails.docs[0]?.id as string)
+            const id: any = convoDetails.docs[0]?.id
+            setCurretntConvo({ ...convoDetails.docs[0]?.data() as any, id })
+            _getAllConvo = getAllConvo('getConvoDetails')
         }
 
         const convoDetailsIds: string[] = []
@@ -143,7 +165,7 @@ const useInbox = () => {
                 }
             })
         })
-        return convoDetails.docs
+        return _getAllConvo as any
     }
 
     const suggestUser = async () => {
@@ -153,35 +175,35 @@ const useInbox = () => {
         result.forEach(doc => users.push(doc.data() as User))
         setSuggestedUsers(users)
     }
-    useEffect(() => {
-        suggestUser()
-        if (user?._id) {
-            getConnectedUser(user._id)
-        }
-    }, [])
 
-    useEffect(() => {
-        if (user?._id) {
-            getConnectedUser(user._id)
-        }
-    }, [user])
 
-    useEffect(() => {
-        setCurrentConvo(null)
-        if (routerQuery.id && user?._id) {
-            console.log(user);
-            getConnectedUser(user._id)
-            getConvo({ currentUserId: user._id, recipientId: routerQuery.id as string })
-        }
-    }, [routerQuery])
+    // useEffect(() => {
+    //     if (user?._id) {
+    //         getConnectedUser(user._id)
+    //     }
+    // }, [user])
+
+    // useEffect(() => {
+    //     setCurrentConvo(null)
+    //     if (routerQuery.id && user?._id) {
+    //         // console.log(user);
+    //         getConnectedUser(user._id)
+    //         getConvo({ currentUserId: user._id, recipientId: routerQuery.id as string })
+    //     }
+    // }, [routerQuery])
 
     return {
         searchByEmail, searchResult,
         suggestedUsers,
-        connectedUser,
+        connectedUsers,
         currentConvo,
         sendMessage,
-        allConvo
+        allConvo,
+        getCurrentConvo,
+        setCurretntConvo,
+        getConnectedUser,
+        getConvo,
+        suggestUser
     }
 }
 

@@ -5,7 +5,7 @@ import useAuth from "~/hooks/useAuth"
 import { Send, UserCog2 } from 'lucide-react';
 import Image from 'next/image'
 import Link from "next/link"
-import { randAvatar } from "~/utils/strings";
+import { convoStarter, randAvatar } from "~/utils/strings";
 import useInbox, { Message } from "~/hooks/useInbox";
 import { validateEmail } from "~/utils/helpers";
 import { UserConvo } from "~/components/ui/inbox";
@@ -14,37 +14,42 @@ import { useState, useEffect, useRef } from 'react'
 import clsx from 'clsx'
 import useUser from "~/hooks/useUser";
 import { User, UserStore } from "~/store/userStore";
-const ChatBubble = ({ chat }: { chat: Message }) => {
-    const { user } = UserStore()
-    return (
-        <div className={clsx("flex text-[13px] w-full animate__animated animate__fastest ", user?._id == (chat as any)?.user ? "justify-end animate__fadeInUp" : "animate__fadeInUp")}>
-            <div className={clsx("flex max-w-[320px] w-content rounded-[10px] px-[10px]  py-[5px] shadow-sm"
-                , user?._id != (chat as any)?.user ? "bg-gradient-to-r from-red-200 text-gray-800 to-orange-200" : "text-white bg-gradient-to-r from-orange-400 to-orange-300"
-            )}>{chat.text}</div>
-        </div>
-    )
-}
+import CurrentConvoBox from "~/components/ui/CurrentConvo";
 
-const UseChatProfile = ({ user }: { user: User }) => {
-    return (user && <div className="flex w-full items-center p-[20px] gap-[10px] justify-center flex-col">
-        <Image className="rounded-[50%] animate__animated animate__fadeInDown" alt={user?.username} src={user?.photoUrl} width={100} height={100} />
-        <div className="flex font-bold text-[36px] animate__animated animate__fastest animate__fadeInDown">
-            {user?.username}
-        </div>
-    </div>)
-}
+
+
 const ChatPage = () => {
-    const { searchByEmail, searchResult, suggestedUsers, currentConvo, connectedUser,allConvo, sendMessage } = useInbox()
+    const { searchByEmail, getConnectedUser, suggestUser, setCurretntConvo, getConvo, searchResult, suggestedUsers, currentConvo, connectedUsers, allConvo, getCurrentConvo, sendMessage } = useInbox()
     const { user: currentUser } = useAuth()
     const { query } = useRouter()
-    const [message, setMessage] = useState(null)
+
     useEffect(() => {
-        let scrollElement = document.getElementById("chatBox")
-        if (scrollElement != undefined) {
-            scrollElement.scrollTop = scrollElement.scrollHeight
+        console.log(suggestUser);
+
+        suggestUser()
+        if (currentUser?._id) {
+            getConnectedUser(currentUser._id)
         }
-    }, [currentConvo])
-    const lastChatRef = useRef(null)
+        Notification.requestPermission();
+    }, [])
+
+    useEffect(() => {
+        if (currentUser?._id) {
+            getConnectedUser(currentUser._id)
+        }
+    }, [currentUser])
+    useEffect(() => {
+        setCurretntConvo(null as any)
+        let unSub: any = () => { }
+        if (query.id && currentUser?._id) {
+            getConnectedUser(currentUser._id)
+            getConvo({ currentUserId: currentUser._id, recipientId: query.id as string })
+        }
+        return (() => {
+            unSub()
+        })
+    }, [query, currentUser])
+
     return (
         <PageContainer>
             <div className="flex w-full h-full">
@@ -67,70 +72,19 @@ const ChatPage = () => {
                                 placeholder="Search Email" />}
                         <div className="flex gap-[5px] w-full flex-col">
                             {query.id && searchResult.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
-                            {connectedUser.map((_user, index) => <div className="flex" style={{ animation: `fadeInUp ${((index + 1) * 400)}ms ease` }}> <UserConvo activeChatId={query.id as any} user={_user} lastChat={allConvo[allConvo.findIndex(convo => convo.users.findIndex(id=> id == currentUser?._id + _user._id)!= -1)]?.lastChat ?? ""} /></div>)}
+                            {connectedUsers.map((_user, index) => <div className="flex" style={{ animation: `fadeInUp ${((index + 1) * 400)}ms ease` }}> <UserConvo activeChatId={query.id as any} user={_user} lastChat={allConvo[allConvo.findIndex(convo => convo.users.findIndex(id => id == currentUser?._id + _user._id) != -1)]?.lastChat ?? ""} /></div>)}
                         </div>
                     </div>
-                    {suggestedUsers.slice(1).filter(user => connectedUser.findIndex(u => u._id == user._id) == -1).length != 0 && < div className="flex flex-col w-[300px] gap-[20px] absolute bottom-[0px] p-[20px]">
+                    {suggestedUsers.slice(1).filter(user => connectedUsers.findIndex(u => u._id == user._id) == -1).length != 0 && < div className="flex flex-col w-[300px] gap-[20px] absolute bottom-[0px] p-[20px]">
                         <div className="flex text-[13px] text-gray-400">
                             People you may know 🤸‍♀️
                         </div>
                         <div className="flex flex-col w-full gap-[10px]">
-                            {suggestedUsers.slice(1).filter(user => connectedUser.findIndex(u => u._id == user._id) == -1 && user._id != currentUser?._id).map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
+                            {suggestedUsers.slice(0).filter(user => connectedUsers.findIndex(u => u._id == user._id) == -1 && user._id != currentUser?._id).map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat={convoStarter() as string} />)}
                         </div>
                     </div>}
                 </div>
-                <div className={clsx("flex static h-full w-full", !query?.id && 'w-full')}>
-                    {!query.id && (
-                        <div className="flex w-full h-full  items-center justify-center">
-                            <div className="flex flex-col gap-[10px] w-full max-w-[480px] p-[20px]">
-                                <div className="flex text-gray-400 text-[13px]">{"Searching for someone? Try search 👇🏻 his/her email"} </div>
-                                <Input
-                                    className="text-gray-600 text-bold"
-                                    onChange={(e) => validateEmail(e.target.value) && searchByEmail(e.target.value)}
-                                    placeholder="Search Email" />
-                                {searchResult.length != 0 && <div className="flex text-[12px] text-green-600">Yeeiihayy 🎉 We got results!🍻 Is he/she 👇🏻 you are looking for?</div>}
-                                {searchResult.map(user => <UserConvo activeChatId={query.id as any} user={user} lastChat="we find ways" />)}
-                            </div>
-                        </div>
-                    )}
-                    <div id={"chatBox"} className="flex flex-col gap-[10px] overflow-y-scroll w-full h-full p-[20px] bottom-[70px] pb-[70px]">
-                        <UseChatProfile user={connectedUser.filter(user => user._id == query.id)[0] as User} />
-                        {currentConvo?.messages?.reverse().map((message: Message, index: number) => {
-                            if (index - 1 == currentConvo?.messages?.length) {
-                                return <div ref={lastChatRef} className="flex "><ChatBubble chat={message} /></div>
-                            }
-                            return <ChatBubble chat={message} />
-                        })}
-                    </div>
-                    <div className="flex backdrop-blur-2xl max-w-[calc(100%-320px)] gap-[10px] w-full px-[20px] py-[10px] absolute bottom-[0px]">
-                        {query?.id && currentConvo && (
-                            <>
-                                <Input
-                                    // value={message ?? ""}
-                                    onKeyDown={(e: any) => {
-                                        if (e.shiftKey && e.key === "Enter") {
-                                            // Insert a line break
-                                            // setText(e.target.value + "\n")
-                                            setMessage(e.target.value)
-                                        }
-                                        else if (e.key === "Enter") {
-                                            // Submit the form
-                                            e.preventDefault(); // Prevents the default form submission
-                                            // setMessage(e.target.value)
-                                            if (e.target.value.trim().length != 0) {
-                                                sendMessage({ text: e.target.value })
-                                                setMessage(null)
-                                                e.target.value = ""
-                                            }
-
-                                            // Replace the following line with your own code to handle form submission
-                                        }
-                                    }}
-                                    placeholder="Send a message ✨" /> <Button className="bg-orange-100" variant={'secondary'}> <Send className="text-orange-400" /></Button>
-                            </>
-                        )}
-                    </div>
-                </div>
+                <CurrentConvoBox />
             </div>
         </PageContainer >
     )
